@@ -33,6 +33,14 @@ public class ApiResponse<T> {
         return new ApiResponse<>(true, "Operation Successful", data);
     }
 
+    public static <T> ApiResponse<T> ok(String message, T data) {
+        ApiResponse<T> response = new ApiResponse<>();
+        response.setSuccessful(true);
+        response.setMessage(message);
+        response.setData(data);
+        return response;
+    }
+
     public static <T> ApiResponse<T> error(String message) {
         return new ApiResponse<>(false, message);
     }

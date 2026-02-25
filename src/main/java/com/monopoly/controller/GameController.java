@@ -40,14 +40,14 @@ public class GameController {
     @PostMapping("/{gameCode}/join")
     public ResponseEntity<?> joinGame(@PathVariable("gameCode") String gameCode, @RequestBody JoinGameRequest request){
         Player player = gameService.joinGame(gameCode, request.getPlayerName());
-        return ResponseEntity.status(HttpStatus.OK).body(request.getPlayerName() + "joined the game successfully" + ApiResponse.ok(responseMapper.toPlayerResponse(player)));
+        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.ok(request.getPlayerName() + " joined the game successfully", responseMapper.toPlayerResponse(player)));
     }
 
     @PostMapping("/{gameCode}/start")
     public ResponseEntity<?> startGame(@PathVariable("gameCode") String gameCode){
         Game game = gameService.startGame(gameCode);
         List<Player> players = playerRepository.findByGameIdOrderByTurnOrder(game.getId());
-        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.ok("Game started! Round 1 begins, " + responseMapper.toGameResponse(game, players)));
+        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.ok("Game started! Round 1 begins.", responseMapper.toGameResponse(game, players)));
     }
 
     @GetMapping("/{gameCode}")
@@ -60,6 +60,6 @@ public class GameController {
     @PostMapping("/players/{playerId}/housing")
     public ResponseEntity<?> pickHousing(@PathVariable("playerId") Long playerId, @RequestBody PickHousingRequest request){
         Player player = gameService.pickHousing(playerId, request.getHousingType());
-        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.ok("Housing selected: " + request.getHousingType() + responseMapper.toPlayerResponse(player)));
+        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.ok("Housing selected: " + request.getHousingType(), responseMapper.toPlayerResponse(player)));
     }
 }

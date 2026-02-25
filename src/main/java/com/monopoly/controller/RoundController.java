@@ -22,7 +22,7 @@ public class RoundController {
     public ResponseEntity<?> playRound(@PathVariable("playerId") Long playerId, @RequestBody PlayRoundRequest request) {
         long loanPaymentKobo = request.getLoanPaymentNaira() * 100;
         RoundResultResponse result = roundService.playRound(playerId, loanPaymentKobo);
-        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.ok("Round " + result.getRoundNumber() + " completed for " + result.getPlayerName() + ", " + result));
+        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.ok("Round " + result.getRoundNumber() + " completed for " + result.getPlayerName(), result));
     }
 
     @GetMapping("/{gameCode}/leaderboard/{roundNumber}")
