@@ -7,6 +7,7 @@ import com.monopoly.data.repository.PlayerRoundRepository;
 import com.monopoly.dto.response.LoanPreviewResponse;
 import com.monopoly.dto.response.PlayerHistoryResponse;
 import com.monopoly.exception.PlayerNotFoundException;
+import com.monopoly.util.Mapper;
 import lombok.AllArgsConstructor;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ import static com.monopoly.util.Mapper.*;
 public class PlayerService {
     private final PlayerRepository playerRepository;
     private final PlayerRoundRepository playerRoundRepository;
+    private final Mapper mapper;
 
 
     public PlayerHistoryResponse getPlayerHistory(Long playerId) {
@@ -45,7 +47,7 @@ public class PlayerService {
         Player player = playerRepository.findById(playerId)
                 .orElseThrow(() -> new PlayerNotFoundException("Player not found: " + playerId));
 
-        return getLoanPreviewResponse(proposedPaymentNaira, player);
+        return mapper.getLoanPreviewResponse(proposedPaymentNaira, player);
     }
 
 

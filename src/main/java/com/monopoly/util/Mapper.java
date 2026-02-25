@@ -1,6 +1,7 @@
 package com.monopoly.util;
 
 import com.monopoly.data.model.*;
+import com.monopoly.data.repository.PlayerRepository;
 import com.monopoly.dto.response.LoanPreviewResponse;
 import com.monopoly.dto.response.PlayerHistoryResponse;
 import com.monopoly.service.LoanService;
@@ -11,8 +12,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class Mapper {
-    @Autowired
-    private static LoanService loanService;
+    private LoanService loanService;
 
     public Mapper(LoanService loanService) {
         this.loanService = loanService;
@@ -158,7 +158,7 @@ public class Mapper {
         response.setCurrentNetWorth(formatNaira(player.getCashBalanceKobo() - player.getLoanBalanceKobo()));
     }
 
-    public static @NonNull LoanPreviewResponse getLoanPreviewResponse(long proposedPaymentNaira, Player player) {
+    public  @NonNull LoanPreviewResponse getLoanPreviewResponse(long proposedPaymentNaira, Player player) {
         long proposedPaymentKobo = proposedPaymentNaira * 100;
         long currentLoan = player.getLoanBalanceKobo();
         long balanceAfterPayment = Math.max(0, currentLoan - proposedPaymentKobo);

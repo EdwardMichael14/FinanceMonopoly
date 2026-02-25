@@ -22,7 +22,7 @@ public class DataSeeder {
 
 
     @PostConstruct
-    public void run(String... args) {
+    public void seed() {
         seedHousingOptions();
         seedDiceEvents();
     }

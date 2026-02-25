@@ -20,9 +20,14 @@ public class HousingOption {
     @Column(unique = true)
     private HousingType housingType;
 
+    @Column(unique = true)
     private String name;
+    @Column
     private Long baseCost;
+    @Column
     private Boolean isFixedRate;
+    @Column
     private Double fixedRatePercent;
+    @Column
     private Double inflationRatePerDicePip;
 }

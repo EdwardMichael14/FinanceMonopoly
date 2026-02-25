@@ -29,7 +29,7 @@ public class Player {
     private PlayerStatus status = PlayerStatus.ACTIVE;
     private Long cashBalanceKobo = 240_000_000L;
     private Long loanBalanceKobo = 150_000_000L;
-    private long creditScore = 500;
+    private Long creditScore = 500L;
     private Long monthlySalaryKobo = 40_000_000L;
     @Enumerated(EnumType.STRING)
     private HousingType housingType;

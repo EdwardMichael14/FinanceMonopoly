@@ -28,17 +28,23 @@ public class Game {
     @Enumerated(EnumType.STRING)
     private GameStatus status = GameStatus.WAITING_FOR_PLAYERS;
 
+    @Column
     private Integer currentRound = 0;
 
-    private int totalRounds = 4;
+    @Column
+    private Integer totalRounds = 4;
 
     @Enumerated(EnumType.STRING)
     private RoundPhase currentPhase = RoundPhase.HOUSING;
 
-    private int maxPlayers = 3;
+    @Column
+    private Integer maxPlayers = 3;
 
+    @Column
     private LocalDateTime createdAt = LocalDateTime.now();
+    @Column
     private LocalDateTime startedAt;
+    @Column
     private LocalDateTime endedAt;
 
     @OneToMany(mappedBy = "game", cascade = CascadeType.ALL)

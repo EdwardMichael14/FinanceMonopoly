@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -30,7 +31,9 @@ public class Round {
 
     private Boolean isCompleted = false;
 
-    private LocalDateTime startedAt = LocalDateTime.now();
+    @CreationTimestamp
+    private LocalDateTime startedAt;
+
     private LocalDateTime completedAt;
 
     @OneToMany(mappedBy = "round", cascade = CascadeType.ALL)

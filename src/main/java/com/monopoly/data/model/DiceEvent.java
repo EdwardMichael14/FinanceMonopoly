@@ -17,6 +17,7 @@ public class DiceEvent {
     @Column(unique = true)
     private Integer diceValue;
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private DiceEventType eventType;
     private String title;
     private String description;
