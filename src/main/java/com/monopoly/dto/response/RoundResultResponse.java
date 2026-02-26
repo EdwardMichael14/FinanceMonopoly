@@ -1,11 +1,10 @@
 package com.monopoly.dto.response;
 
-import com.monopoly.data.model.DiceEventType;
+import com.monopoly.data.model.DiceOutcome;
 import com.monopoly.data.model.HousingType;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
 
 @Getter
 @Setter
@@ -13,32 +12,21 @@ import lombok.Setter;
 public class RoundResultResponse {
     private Long playerId;
     private String playerName;
-    private Integer roundNumber;
+    private int roundNumber;
 
-    private Long salaryReceivedKobo;
+    private long salaryReceived;
     private HousingType housingType;
-    private Long housingCostKobo;
-    private Long survivalCostKobo;
-    private Long loanPaymentKobo;
-    private Long loanBalanceRemainingKobo;
+    private long housingCost;
+    private long survivalCost;
+    private long loanPayment;
+    private long loanBalanceRemaining;
 
-    private Integer diceRoll;
-    private DiceEventType eventType;
-    private String eventDescription;
-    private Long eventAmountKobo;
+    private int diceRoll;
+    private DiceOutcome diceOutcome;
+    private String diceEventDescription;
+    private long diceEventAmount;
 
-    private Long cashBalanceEndKobo;
-    private Long netWorthKobo;
-
-
-
-
-
-    public String getFormattedNetWorth() {
-        return String.format("₦%,d", netWorthKobo / 100);
-    }
-
-    public String getFormattedCashBalance() {
-        return String.format("₦%,d", cashBalanceEndKobo / 100);
-    }
+    private long investmentPayout;
+    private long cashBalanceEnd;
+    private long netWorth;
 }

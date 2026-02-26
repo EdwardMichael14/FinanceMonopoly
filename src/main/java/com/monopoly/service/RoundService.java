@@ -1,211 +1,194 @@
 package com.monopoly.service;
 
-
 import com.monopoly.data.model.*;
 import com.monopoly.data.repository.GameRepository;
 import com.monopoly.data.repository.PlayerRepository;
 import com.monopoly.data.repository.PlayerRoundRepository;
-import com.monopoly.data.repository.RoundRepository;
-import com.monopoly.dto.response.LeaderBoard;
-import com.monopoly.dto.response.RoundResultResponse;
-import com.monopoly.exception.InvalidGameActionException;
-import com.monopoly.exception.PlayerNotFoundException;
+import com.monopoly.data.model.PlayerRound;
+import java.util.List;
+import java.util.NoSuchElementException;
 import jakarta.transaction.Transactional;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Random;
 
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class RoundService {
 
     private final GameRepository gameRepository;
     private final PlayerRepository playerRepository;
-    private final RoundRepository roundRepository;
     private final PlayerRoundRepository playerRoundRepository;
+    private final Random random = new Random();
 
-    private final HousingService housingService;
-    private final LoanService loanService;
-    private final DiceService diceService;
-    private final InvestmentService investmentService;
-    private static final long SURVIVAL_COST_KOBO = 70_000_000L;
-    private static final long SALARY_KOBO = 240_000_000L;
-
+    private static final long SALARY_PER_ROUND = 2_400_000L;
+    private static final long SURVIVAL_COST = 700_000L;
+    private static final double LOAN_INTEREST_RATE = 0.10;
 
     @Transactional
-    public RoundResultResponse playRound(Long playerId, long loanPayment) {
+    public PlayerRound playRound(Long playerId, long loanPayment) {
         Player player = playerRepository.findById(playerId)
-                .orElseThrow(() -> new PlayerNotFoundException("Player not found: " + playerId));
-
+                .orElseThrow(() -> new NoSuchElementException("Player not found: " + playerId));
         Game game = player.getGame();
-        validateGameInProgress(game);
+        validateTurn(player, game);
 
-        if (player.getHousingType() == null) {
-            throw new InvalidGameActionException("Player must pick housing before playing the round.");
-        }
+        PlayerRound pr = new PlayerRound();
+        pr.setPlayer(player);
+        pr.setRoundNumber(game.getCurrentRound());
+        pr.setHousingType(player.getHousingType());
 
-        Round currentRound = roundRepository.findByGameIdAndRoundNumber(game.getId(), game.getCurrentRound())
-                .orElseThrow(() -> new InvalidGameActionException("Current round not found."));
+        // Step 1: Financial Phase (Salary, Investments, Survival)
+        processSalary(player, pr);
+        processInvestments(player, pr);
+        processSurvival(player, pr);
 
-        boolean alreadyPlayed = playerRoundRepository.findByPlayerIdAndRoundId(playerId, currentRound.getId()).isPresent();
-        if (alreadyPlayed) {
-            throw new InvalidGameActionException("Player has already completed this round.");
-        }
+        // Step 2 & 3: Decision & Payment Phase (Housing, Loan Repayment)
+        processHousingAndLoanPayment(player, game, loanPayment, pr);
 
-        PlayerRound playerRound = new PlayerRound();
-        playerRound.setPlayer(player);
-        playerRound.setRound(currentRound);
-        playerRound.setHousingType(player.getHousingType());
-        playerRound.setSurvivalCostKobo(SURVIVAL_COST_KOBO);
+        // Step 4: Uncertainty Phase (Roll Dice)
+        processDiceEventAndUncertainty(player, game, pr);
 
-        investmentService.payoutPendingInvestments(player, game.getCurrentRound(), game.getTotalRounds());
-
-        long salary = 0L;
-        if (!player.getMissNextSalary()) {
-            salary = SALARY_KOBO;
-            player.setCashBalanceKobo(player.getCashBalanceKobo() + salary);
-        } else {
-            player.setMissNextSalary(false);
-            player.setStatus(PlayerStatus.ACTIVE);
-        }
-        playerRound.setSalaryReceivedKobo(salary);
-
-        int housingDiceRoll = new java.util.Random().nextInt(6) + 1;
-        long housingCost = housingService.calculateHousingCost(
-                player.getHousingType(), game.getCurrentRound(), housingDiceRoll
-        );
-        player.setCashBalanceKobo(player.getCashBalanceKobo() - housingCost);
-        playerRound.setHousingCostPaidKobo(housingCost);
-
-        player.setCashBalanceKobo(player.getCashBalanceKobo() - SURVIVAL_COST_KOBO);
-
-        long loanBalanceAfter = loanService.makeLoanPayment(player, loanPayment);
-        playerRound.setLoanPaymentKobo(loanPayment);
-        playerRound.setLoanBalanceAfterKobo(loanBalanceAfter);
-
-        loanService.applyInterest(player);
-
-        DiceService.DiceRollResult diceResult = diceService.rollAndApplyEvent(player, game);
-        playerRound.setDiceRoll(diceResult.diceRoll());
-        playerRound.setEventType(diceResult.eventType());
-        playerRound.setEventAmountKobo(diceResult.eventAmountKobo());
-
-        long netWorth = player.getCashBalanceKobo() - player.getLoanBalanceKobo();
-        player.setFinalNetWorthKobo(netWorth);
-        playerRound.setCashBalanceEndKobo(player.getCashBalanceKobo());
-        playerRound.setNetWorthKobo(netWorth);
-        playerRound.setIsCompleted(true);
-        playerRound.setCompletedAt(LocalDateTime.now());
+        // Step 5: Finalization Phase (Interest, Net Worth)
+        finalizeRound(player, game, pr);
 
         playerRepository.save(player);
-        playerRoundRepository.save(playerRound);
-
-        checkAndAdvanceRound(game, currentRound);
-
-        return buildRoundResult(playerRound, diceResult.eventDescription());
+        playerRoundRepository.save(pr);
+        advanceRoundIfComplete(game);
+        return pr;
     }
 
-
-    private void checkAndAdvanceRound(Game game, Round currentRound) {
-        int totalPlayers = playerRepository.countByGameId(game.getId());
-        int completedPlayers = playerRoundRepository.countByRoundIdAndIsCompleted(currentRound.getId(), true);
-
-        if (completedPlayers < totalPlayers) {
-            return;
+    private void validateTurn(Player player, Game game) {
+        if (game.getStatus() != GameStatus.IN_PROGRESS)
+            throw new IllegalArgumentException("Game not in progress");
+        if (player.getHousingType() == null)
+            throw new IllegalArgumentException("Housing not selected");
+        if (playerRoundRepository.existsByPlayerIdAndRoundNumber(player.getId(), game.getCurrentRound())) {
+            throw new IllegalArgumentException("Already played this round");
         }
+    }
 
-        currentRound.setIsCompleted(true);
-        currentRound.setCompletedAt(LocalDateTime.now());
-        roundRepository.save(currentRound);
-
-        boolean isLastRound = game.getCurrentRound() >= game.getTotalRounds();
-
-        if (isLastRound) {
-            endGame(game);
+    private void processSalary(Player player, PlayerRound pr) {
+        if (!player.isMissNextSalary()) {
+            player.setCashBalance(player.getCashBalance() + SALARY_PER_ROUND);
+            pr.setSalaryReceived(SALARY_PER_ROUND);
         } else {
-            int nextRoundNumber = game.getCurrentRound() + 1;
-            game.setCurrentRound(nextRoundNumber);
-            game.setCurrentPhase(RoundPhase.HOUSING);
-
-            Round nextRound = new Round();
-            nextRound.setGame(game);
-            nextRound.setRoundNumber(nextRoundNumber);
-            roundRepository.save(nextRound);
-
-            gameRepository.save(game);
+            player.setMissNextSalary(false);
+            pr.setSalaryReceived(0L);
         }
     }
 
-    private void endGame(Game game) {
-        game.setStatus(GameStatus.ENDED);
-        game.setEndedAt(LocalDateTime.now());
+    private void processInvestments(Player player, PlayerRound pr) {
+        long inv = player.getPendingInvestmentReturn() + player.getInvestmentBPerRoundReturn();
+        if (inv > 0) {
+            player.setCashBalance(player.getCashBalance() + inv);
+            pr.setInvestmentPayout(inv);
+            player.setPendingInvestmentReturn(0);
+        }
+    }
 
-        List<Player> players = playerRepository.findByGameIdOrderByTurnOrder(game.getId());
-        players.forEach(p -> {
-            if (p.getStatus() != PlayerStatus.ELIMINATED) {
-                p.setStatus(PlayerStatus.FINISHED);
+    private void processSurvival(Player player, PlayerRound pr) {
+        player.setCashBalance(player.getCashBalance() - SURVIVAL_COST);
+        pr.setSurvivalCost(SURVIVAL_COST);
+    }
+
+    private void processHousingAndLoanPayment(Player player, Game game, long loanPayment, PlayerRound pr) {
+        // Step 1: Handle Inflation Roll (Only from Round 2 onwards)
+        if (game.getCurrentRound() > 1) {
+            int inflationRoll = random.nextInt(6) + 1;
+            pr.setInflationDiceRoll(inflationRoll);
+        }
+
+        // Step 2: Rent Calculation (Based on cumulative inflation rolls)
+        List<Integer> previousInflationRolls = playerRoundRepository.findByPlayerIdOrderByRoundNumber(player.getId())
+                .stream()
+                .map(pRound -> pRound.getInflationDiceRoll())
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.ArrayList::new, java.util.ArrayList::add, java.util.ArrayList::addAll);
+
+        // Add current round's roll to the list for calculation
+        if (pr.getInflationDiceRoll() != null) {
+            previousInflationRolls.add(pr.getInflationDiceRoll());
+        }
+
+        long housingCost = player.getHousingType().calculateCost(game.getCurrentRound(), previousInflationRolls);
+        player.setCashBalance(player.getCashBalance() - housingCost);
+        pr.setHousingCost(housingCost);
+
+        // Step 3: Loan Repayment
+        validateLoanPayment(player, loanPayment);
+        player.setCashBalance(player.getCashBalance() - loanPayment);
+        player.setLoanBalance(player.getLoanBalance() - loanPayment);
+        pr.setLoanPayment(loanPayment);
+    }
+
+    private void processDiceEventAndUncertainty(Player player, Game game, PlayerRound pr) {
+        int diceRoll = random.nextInt(6) + 1;
+        player.setLastDiceRoll(diceRoll); // Save for next round's rent inflation
+
+        DiceOutcome outcome = DiceOutcome.fromRoll(diceRoll);
+        long eventAmount = 0;
+
+        switch (outcome) {
+            case JOB_LOSS -> player.setMissNextSalary(true);
+            case MEDICAL_EMERGENCY, FAMILY_EMERGENCY, FAMILY_SUPPORT -> {
+                player.setCashBalance(player.getCashBalance() - outcome.getAmount());
+                eventAmount = -outcome.getAmount();
             }
-            playerRepository.save(p);
-        });
+            case INVESTMENT_A -> {
+                player.setCashBalance(player.getCashBalance() - outcome.getAmount());
+                player.setPendingInvestmentReturn(900_000L);
+                eventAmount = -outcome.getAmount();
+            }
+            case INVESTMENT_B -> {
+                player.setCashBalance(player.getCashBalance() - outcome.getAmount());
+                player.setInvestmentBPerRoundReturn(player.getInvestmentBPerRoundReturn() + 340_000L);
+                eventAmount = -outcome.getAmount();
+            }
+        }
 
+        pr.setDiceRoll(diceRoll);
+        pr.setDiceOutcome(outcome);
+        pr.setDiceEventAmount(eventAmount);
+    }
+
+    private void finalizeRound(Player player, Game game, PlayerRound pr) {
+        // Apply 10% Interest on remaining balance after repayment
+        if (player.getLoanBalance() > 0) {
+            long interest = Math.round(player.getLoanBalance() * LOAN_INTEREST_RATE);
+            player.setLoanBalance(player.getLoanBalance() + interest);
+        }
+
+        pr.setLoanBalanceAfter(player.getLoanBalance());
+        pr.setCashBalanceEnd(player.getCashBalance());
+        pr.setNetWorth(player.getCashBalance() - player.getLoanBalance());
+    }
+
+    private void validateLoanPayment(Player player, long payment) {
+        if (payment < 0) {
+            throw new IllegalArgumentException("Loan payment cannot be negative.");
+        }
+        if (payment > player.getLoanBalance()) {
+            throw new IllegalArgumentException("Cannot pay more than remaining loan: " + player.getLoanBalance());
+        }
+        if (payment > player.getCashBalance()) {
+            throw new IllegalArgumentException("Not enough cash after expenses: " + player.getCashBalance());
+        }
+    }
+
+    private void advanceRoundIfComplete(Game game) {
+        int totalPlayers = playerRepository.countByGameId(game.getId());
+        int completed = playerRoundRepository.countByPlayerGameIdAndRoundNumber(game.getId(),
+                game.getCurrentRound());
+        if (completed < totalPlayers)
+            return;
+        if (game.getCurrentRound() >= game.getTotalRounds()) {
+            game.setStatus(GameStatus.ENDED);
+            game.setEndedAt(LocalDateTime.now());
+        } else {
+            game.setCurrentRound(game.getCurrentRound() + 1);
+        }
         gameRepository.save(game);
-    }
-
-
-    public LeaderBoard getLeaderboard(String gameCode, int roundNumber) {
-        Game game = gameRepository.findByGameCode(gameCode)
-                .orElseThrow(() -> new InvalidGameActionException("Game not found: " + gameCode));
-
-        Round round = roundRepository.findByGameIdAndRoundNumber(game.getId(), roundNumber)
-                .orElseThrow(() -> new InvalidGameActionException("Round " + roundNumber + " not found."));
-
-        List<PlayerRound> roundResults = playerRoundRepository.findRoundLeaderboard(round.getId());
-
-        List<LeaderBoard.PlayerStanding> standings = new ArrayList<>();
-        int rank = 1;
-        for (PlayerRound pr : roundResults) {
-            LeaderBoard.PlayerStanding standing = new LeaderBoard.PlayerStanding();
-            standing.setRank(rank++);
-            standing.setPlayerId(pr.getPlayer().getId());
-            standing.setPlayerName(pr.getPlayer().getName());
-            standing.setNetWorthKobo(pr.getNetWorthKobo());
-            standing.setCashBalanceKobo(pr.getCashBalanceEndKobo());
-            standing.setLoanBalanceKobo(pr.getLoanBalanceAfterKobo());
-            standings.add(standing);
-        }
-
-        LeaderBoard leaderboard = new LeaderBoard();
-        leaderboard.setRoundNumber(roundNumber);
-        leaderboard.setStandings(standings);
-        return leaderboard;
-    }
-
-    private RoundResultResponse buildRoundResult(PlayerRound pr, String eventDescription) {
-        RoundResultResponse result = new RoundResultResponse();
-        result.setPlayerId(pr.getPlayer().getId());
-        result.setPlayerName(pr.getPlayer().getName());
-        result.setRoundNumber(pr.getRound().getRoundNumber());
-        result.setSalaryReceivedKobo(pr.getSalaryReceivedKobo());
-        result.setHousingType(pr.getHousingType());
-        result.setHousingCostKobo(pr.getHousingCostPaidKobo());
-        result.setSurvivalCostKobo(pr.getSurvivalCostKobo());
-        result.setLoanPaymentKobo(pr.getLoanPaymentKobo());
-        result.setLoanBalanceRemainingKobo(pr.getLoanBalanceAfterKobo());
-        result.setDiceRoll(pr.getDiceRoll());
-        result.setEventType(pr.getEventType());
-        result.setEventDescription(eventDescription);
-        result.setEventAmountKobo(pr.getEventAmountKobo());
-        result.setCashBalanceEndKobo(pr.getCashBalanceEndKobo());
-        result.setNetWorthKobo(pr.getNetWorthKobo());
-        return result;
-    }
-
-    private void validateGameInProgress(Game game) {
-        if (game.getStatus() != GameStatus.IN_PROGRESS) {
-            throw new InvalidGameActionException("Game is not in progress.");
-        }
     }
 }

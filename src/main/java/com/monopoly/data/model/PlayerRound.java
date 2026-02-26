@@ -5,8 +5,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
-
 @Entity
 @Table(name = "player_rounds")
 @Getter
@@ -20,24 +18,28 @@ public class PlayerRound {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "player_id")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Player player;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "round_id")
-    private Round round;
-    private Long salaryReceivedKobo;
+    private int roundNumber;
+
+    private long salaryReceived;
+
     @Enumerated(EnumType.STRING)
     private HousingType housingType;
-    private Long housingCostPaidKobo;
-    private Long survivalCostKobo = 70_000_000L;
-    private Long loanPaymentKobo;
-    private Long loanBalanceAfterKobo;
-    private Integer diceRoll;
+    private long housingCost;
+
+    private long survivalCost;
+    private long loanPayment;
+    private long loanBalanceAfter;
+
+    private int diceRoll;
+    private Integer inflationDiceRoll;
     @Enumerated(EnumType.STRING)
-    private DiceEventType eventType;
-    private Long eventAmountKobo;
-    private Long cashBalanceEndKobo;
-    private Long netWorthKobo;
-    private Boolean isCompleted = false;
-    private LocalDateTime completedAt;
+    private DiceOutcome diceOutcome;
+    private long diceEventAmount;
+
+    private long investmentPayout;
+    private long cashBalanceEnd;
+    private long netWorth;
 }

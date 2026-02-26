@@ -6,31 +6,22 @@ import lombok.Setter;
 
 import java.util.List;
 
-
 @Getter
 @Setter
 @NoArgsConstructor
 public class LeaderBoard {
-    private Integer roundNumber;
+    private int roundNumber;
     private List<PlayerStanding> standings;
-
-
 
     @Getter
     @Setter
     @NoArgsConstructor
     public static class PlayerStanding {
-        private Integer rank;
+        private int rank;
         private Long playerId;
         private String playerName;
-        private Long netWorthKobo;
-        private Long cashBalanceKobo;
-        private Long loanBalanceKobo;
-
-
-
-        public String getFormattedNetWorth() {
-            return String.format("₦%,d", netWorthKobo / 100);
-        }
+        private long netWorth;
+        private long cashBalance;
+        private long loanBalance;
     }
 }

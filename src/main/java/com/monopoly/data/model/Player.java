@@ -5,42 +5,42 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.List;
 import java.util.ArrayList;
-
+import java.util.List;
 
 @Entity
-@Setter
-@Getter
-@NoArgsConstructor
 @Table(name = "players")
+@Getter
+@Setter
+@NoArgsConstructor
 public class Player {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private String name;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "game_id")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Game game;
 
-    @Enumerated(EnumType.STRING)
-    private PlayerStatus status = PlayerStatus.ACTIVE;
-    private Long cashBalanceKobo = 240_000_000L;
-    private Long loanBalanceKobo = 150_000_000L;
-    private Long creditScore = 500L;
-    private Long monthlySalaryKobo = 40_000_000L;
+    private long cashBalance = 2_400_000L;
+    private long loanBalance = 1_500_000L;
+    private long creditScore = 500L;
+
     @Enumerated(EnumType.STRING)
     private HousingType housingType;
-    private Boolean missNextSalary = false;
-    private Integer turnOrder;
-    private Long finalNetWorthKobo;
+
+    private boolean missNextSalary = false;
+    private long pendingInvestmentReturn = 0L;
+    private long investmentBPerRoundReturn = 0L;
+
+    private int turnOrder;
+    private int lastDiceRoll = 1;
 
     @OneToMany(mappedBy = "player", cascade = CascadeType.ALL)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private List<PlayerRound> playerRounds = new ArrayList<>();
-
-    @OneToMany(mappedBy = "player", cascade = CascadeType.ALL)
-    private List<Investment> investments = new ArrayList<>();
 }
-

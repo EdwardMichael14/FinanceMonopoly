@@ -1,6 +1,6 @@
 package com.monopoly.exception;
 
-public class InsufficientFundsException extends MonopolyGameException{
+public class InsufficientFundsException extends RuntimeException {
     public InsufficientFundsException(String message) {
         super(message);
     }

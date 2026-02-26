@@ -1,33 +1,32 @@
 package com.monopoly.controller;
 
-
-import com.monopoly.dto.request.PlayRoundRequest;
-import com.monopoly.dto.response.ApiResponse;
-import com.monopoly.dto.response.LeaderBoard;
-import com.monopoly.dto.response.RoundResultResponse;
+import com.monopoly.data.model.PlayerRound;
+import com.monopoly.service.GameService;
 import com.monopoly.service.RoundService;
-import lombok.AllArgsConstructor;
-import org.springframework.http.HttpStatus;
+import com.monopoly.dto.response.ApiResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 
 @RestController
-@RequestMapping("/monopoly/rounds")
-@AllArgsConstructor
+@RequestMapping("/api/v1/monopoly/rounds")
+@RequiredArgsConstructor
 public class RoundController {
+
     private final RoundService roundService;
+    private final GameService gameService;
 
     @PostMapping("/players/{playerId}/play")
-    public ResponseEntity<?> playRound(@PathVariable("playerId") Long playerId, @RequestBody PlayRoundRequest request) {
-        long loanPaymentKobo = request.getLoanPaymentNaira() * 100;
-        RoundResultResponse result = roundService.playRound(playerId, loanPaymentKobo);
-        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.ok("Round " + result.getRoundNumber() + " completed for " + result.getPlayerName(), result));
+    public ResponseEntity<ApiResponse<PlayerRound>> playRound(@PathVariable Long playerId,
+            @RequestParam long loanPayment) {
+        return ResponseEntity
+                .ok(ApiResponse.ok("Round played successfully", roundService.playRound(playerId, loanPayment)));
     }
 
-    @GetMapping("/{gameCode}/leaderboard/{roundNumber}")
-    public ResponseEntity<?> getLeaderboard(@PathVariable("gameCode") String gameCode, @PathVariable("roundNumber") int roundNumber) {
-        LeaderBoard leaderboard = roundService.getLeaderboard(gameCode, roundNumber);
-        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.ok(leaderboard));
+    @GetMapping("/players/{playerId}/history")
+    public ResponseEntity<ApiResponse<List<PlayerRound>>> getPlayerHistory(@PathVariable Long playerId) {
+        return ResponseEntity.ok(ApiResponse.ok(gameService.getPlayerHistory(playerId)));
     }
 }
