@@ -10,8 +10,14 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(@org.springframework.lang.NonNull CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins("*")
+                // Adding both your Vercel production URL and Localhost for development
+                .allowedOrigins(
+                        "https://finance-monopoly.vercel.app",
+                        "http://localhost:5173", // Default Vite port
+                        "http://localhost:3000"  // Default React port
+                )
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                .allowedHeaders("*");
+                .allowedHeaders("*")
+                .allowCredentials(true);
     }
 }
